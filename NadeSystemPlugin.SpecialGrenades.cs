@@ -27,7 +27,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Spawns and charges an immediate situational grenade
     private void TrySpawnInstantGrenade(CCSPlayerController bot, Vector spawnPos, string gtype, Vector? velocity = null)
     {
-        if (_botNadesMode == "off") return;
+        if (!UsesLegacyReplayFeatures) return;
         // In case the bot has been taken over
         bool isTakenOver = bot.HasBeenControlledByPlayerThisRound;
         if (isTakenOver) return;
@@ -67,6 +67,7 @@ public partial class NadeSystemPlugin : BasePlugin
         {
             try
             {
+                if (!UsesLegacyReplayFeatures) return;
                 var botPawn = bot.PlayerPawn?.Value;
                 if (botPawn == null || !botPawn.IsValid) return;
 
@@ -118,6 +119,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Triggers defensive smoke or flash support during a defuse
     private HookResult OnBombBeginDefuse(EventBombBegindefuse @event, GameEventInfo info)
     {
+        if (!UsesLegacyReplayFeatures) return HookResult.Continue;
         var bot = @event.Userid;
         if (bot == null || !bot.IsValid || !bot.IsBot) return HookResult.Continue;
         if (bot.HasBeenControlledByPlayerThisRound) return HookResult.Continue;
@@ -167,6 +169,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Triggers smoke support when a bot starts planting
     private HookResult OnBombBeginPlant(EventBombBeginplant @event, GameEventInfo info)
     {
+        if (!UsesLegacyReplayFeatures) return HookResult.Continue;
         if (_plantSmokeUsed) return HookResult.Continue;
 
         var bot = @event.Userid;
@@ -199,7 +202,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Uses smoke to help a bot escape sustained fire damage
     private void HandleMolotovEscape(EventPlayerHurt @event)
     {
-        if (_botNadesMode == "off") return;
+        if (!UsesLegacyReplayFeatures) return;
         var victim = @event.Userid;
         if (victim == null || !victim.IsValid || !victim.IsBot) return;
         if (victim.HasBeenControlledByPlayerThisRound) return;
@@ -243,7 +246,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Selects and throws a retaliatory explosive grenade
     private void HandleRetaliationHE(EventPlayerHurt @event)
     {
-        if (_botNadesMode == "off") return;
+        if (!UsesLegacyReplayFeatures) return;
         var victim = @event.Userid;
         if (victim == null || !victim.IsValid || !victim.IsBot) return;
         if (victim.HasBeenControlledByPlayerThisRound) return;

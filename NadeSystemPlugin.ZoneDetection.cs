@@ -29,7 +29,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Detects bots entering configured grenade trigger zones
     private void CheckBotZones()
     {
-        if (_botNadesMode == "off") return;
+        if (!UsesReplayDatabase) return;
         // Don't throw nades if the round is over
         if (_roundOver) return;
 

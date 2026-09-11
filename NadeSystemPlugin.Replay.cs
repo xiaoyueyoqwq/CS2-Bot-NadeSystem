@@ -27,7 +27,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Validates limits and commits a configured grenade replay
     private void TryReplay(CCSPlayerController bot, GrenadeData g, List<CCSPlayerController> allControllers)
     {
-        if (_botNadesMode == "off") return;
+        if (!UsesReplayDatabase) return;
         // In case the bot has been taken over
         bool isTakenOver = bot.HasBeenControlledByPlayerThisRound;
         if (isTakenOver) return;
@@ -164,6 +164,7 @@ public partial class NadeSystemPlugin : BasePlugin
         {
             try
             {
+                if (!UsesReplayDatabase) return;
                 var botPawn = bot.PlayerPawn?.Value;
                 if (botPawn == null || !botPawn.IsValid)
                 {

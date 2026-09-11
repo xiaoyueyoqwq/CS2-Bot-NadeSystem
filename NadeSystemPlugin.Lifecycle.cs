@@ -27,6 +27,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Initializes data, event handlers, listeners, and commands
     public override void Load(bool hotReload)
     {
+        ApplyModeSettings();
         Directory.CreateDirectory(DataDir);
         LoadDb();
 
@@ -51,7 +52,7 @@ public partial class NadeSystemPlugin : BasePlugin
             _roundNadeMoneyPerBot.Clear();
         });
         
-        AddCommand("bot_nades", "Control bots' nade throw mode (off/less/normal/more/max)", CmdBotNades);
+        AddCommand("bot_nades", "Control bots' nade throw mode (off/less/normal/more/max/native/coach_*)", CmdBotNades);
         
         Server.PrintToConsole($"[NadeSystem] Loaded — {_db.Count} grenades in DB.");
     }
@@ -183,6 +184,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Cancels friendly flashes covered by temporary bot immunity
     private HookResult OnPlayerBlind(EventPlayerBlind @event, GameEventInfo info)
     {
+        if (!UsesLegacyReplayFeatures) return HookResult.Continue;
         var victim   = @event.Userid;
 
         if (victim is null || !victim.IsValid || !victim.IsBot)
@@ -223,12 +225,7 @@ public partial class NadeSystemPlugin : BasePlugin
     private void OnTick()
     {
         _tick++;
-        if (_botNadesMode == "off")
-        {
-            if (_tick % 256 == 0) PruneCooldowns();
-            return;
-        }
-        if (_tick % 4   == 0) CheckBotZones();
+        if (UsesReplayDatabase && _tick % 4 == 0) CheckBotZones();
         if (_tick % 256 == 0) PruneCooldowns();
     }
 }

@@ -25,7 +25,7 @@ namespace NadeSystem;
 public partial class NadeSystemPlugin : BasePlugin
 {
     public override string ModuleName    => "NadeSystem";
-    public override string ModuleVersion => "1.2.1";
+    public override string ModuleVersion => "1.2.2";
     public override string ModuleAuthor  => "ed0ard & XBribo";
 
     // grenades folder lives inside the plugin directory
@@ -35,7 +35,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // Static trigger-zone index rebuilt whenever the active map data is loaded
     private const float GrenadeZoneGridSize = 256f;
     private Dictionary<(int X, int Y), List<GrenadeData>> _grenadeZoneGrid = new();
-    private string _botNadesMode = "normal"; // "off" | "less" | "normal" | "more" | "max"
+    private string _botNadesMode = "normal"; // replay modes plus native/coach_* modes
     // ── State ──────────────────────────────────────────────────
     private List<GrenadeData>     _db                = new();
     private List<CooldownEntry>   _cooldowns         = new();

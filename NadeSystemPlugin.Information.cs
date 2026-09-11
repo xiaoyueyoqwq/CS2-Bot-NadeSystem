@@ -26,7 +26,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Records Valve's latest audible state for a player
     private HookResult OnPlayerSound(EventPlayerSound @event, GameEventInfo info)
     {
-        if (_botNadesMode == "off") return HookResult.Continue;
+        if (!UsesReplayDatabase) return HookResult.Continue;
 
         var player = @event.Userid;
         if (player == null || !player.IsValid || @event.Radius <= 0 || @event.Duration <= 0f)
@@ -48,7 +48,7 @@ public partial class NadeSystemPlugin : BasePlugin
     // * Records recent weapon fire for combat checks
     private HookResult OnWeaponFire(EventWeaponFire @event, GameEventInfo info)
     {
-        if (_botNadesMode == "off") return HookResult.Continue;
+        if (!UsesReplayDatabase) return HookResult.Continue;
 
         var p = @event.Userid;
         if (p != null && p.IsValid)

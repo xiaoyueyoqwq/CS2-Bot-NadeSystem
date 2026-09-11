@@ -30,12 +30,13 @@ public partial class NadeSystemPlugin : BasePlugin
             return;
         }
         var val = info.GetArg(1).ToLower();
-        if (val != "off" && val != "less" && val != "normal" && val != "more" && val != "max")
+        if (!SupportedModes.Contains(val))
         {
-            Server.PrintToConsole("\x0C[NadeSystem]\x01 Usage: bot_nades <off|less|normal|more|max>");
+            Server.PrintToConsole("\x0C[NadeSystem]\x01 Usage: bot_nades <off|less|normal|more|max|native|coach_easy|coach_normal|coach_hard>");
             return;
         }
         _botNadesMode = val;
+        ApplyModeSettings();
         Server.PrintToConsole($"[NadeSystem] bot_nades set to {_botNadesMode}");
     }
 }
