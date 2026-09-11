@@ -25,7 +25,7 @@ namespace NadeSystem;
 public partial class NadeSystemPlugin : BasePlugin
 {
     public override string ModuleName    => "NadeSystem";
-    public override string ModuleVersion => "1.2.2";
+    public override string ModuleVersion => "1.2.3";
     public override string ModuleAuthor  => "ed0ard & XBribo";
 
     // grenades folder lives inside the plugin directory
@@ -63,6 +63,9 @@ public partial class NadeSystemPlugin : BasePlugin
     private Dictionary<uint, float> _botMolotovDmgStart = new();
     // team-side cooldown: key = teamNum (2=T,3=CT), value = expiry time
     private Dictionary<int, float>  _molotovEscapeSmokeCooldown = new();
+    // Native/coach last-seen combat throws: last processed CCSBot saw-stamp, next allowed throw time
+    private Dictionary<uint, float> _lastSeenThrowSawAt = new();
+    private Dictionary<uint, float> _lastSeenThrowReadyAt = new();
     // Normal and More modes
     private Dictionary<int, float> _retaliationCooldown      = new();
     // Normal Mode

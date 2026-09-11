@@ -1,14 +1,14 @@
 # CS2-Bot-NadeSystem
 
 Maintained fork of [ed0ard/CS2-Bot-NadeSystem](https://github.com/ed0ard/CS2-Bot-NadeSystem).
-The loaded plugin name is still `NadeSystem` (1.2.2).
+The loaded plugin name is still `NadeSystem` (1.2.3).
 
 This is a standalone plugin repo. CS2-Bot-Improver is the combined
 distribution; do not develop NadeSystem on Improver feature branches.
 
 Relative to upstream 1.2.1 (`21788dc`, CSS API, no RayTrace) this fork adds:
 
-1. Native/coach modes (`native`, `coach_easy`, `coach_normal`, `coach_hard`) that leave grenade buy/throw/physics to Valve CCSBot
+1. Native/coach modes (`native`, `coach_easy`, `coach_normal`, `coach_hard`) that leave grenade buy to Valve CCSBot, then throw HE/molotov/flash from the bot's eyes toward a just-lost last-seen (not JSON lineup origins)
 2. Replay/lineup scan and special projectile generation only run for `less|normal|more|max`
 3. `NadeSystem.json` `Mode` plus `bot_nades` accept the extra modes and apply Valve buy weights
 
@@ -54,10 +54,10 @@ Bots use the same decision logic as normal mode with higher count limits (recomm
 Bots have minimal limitations and think less before throwing nades
 
 `bot_nades native`  
-Valve CCSBot owns grenade buy/throw/physics. Plugin does not scan lineups or spawn replay projectiles.
+Valve CCSBot owns grenade buy. Plugin does not scan lineups. After losing sight of an enemy (0.2–2.5s, still holding that angle), the bot may throw a real HE/molotov/flash from its eyes toward that last-seen point (25% after gates).
 
 `bot_nades coach_easy` / `coach_normal` / `coach_hard`  
-Same as native, with higher Valve buy chance and grenade weights. `coach_hard` uses chance 80, smoke/flash/HE/molotov 6/4/4/6, decoy 1.
+Same last-seen combat throws as native, with higher Valve buy chance and grenade weights, and higher throw chance after gates (30% / 50% / 70%). `coach_hard` uses buy chance 80, smoke/flash/HE/molotov 6/4/4/6, decoy 1.
 
 # Instructions
 ## Record Lineups

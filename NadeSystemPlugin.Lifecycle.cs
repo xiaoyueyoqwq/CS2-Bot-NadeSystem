@@ -80,6 +80,8 @@ public partial class NadeSystemPlugin : BasePlugin
         _botFlashImmunityUntil.Clear();
         _molotovEscapeSmokeCooldown.Clear();
         _retaliationCooldown.Clear();
+        _lastSeenThrowSawAt.Clear();
+        _lastSeenThrowReadyAt.Clear();
         // Information System
         _playerSounds.Clear();
         _botLastFireTime.Clear();
@@ -226,6 +228,7 @@ public partial class NadeSystemPlugin : BasePlugin
     {
         _tick++;
         if (UsesReplayDatabase && _tick % 4 == 0) CheckBotZones();
+        if (UsesNativeBotNades && _tick % 8 == 0) CheckLastSeenThrows();
         if (_tick % 256 == 0) PruneCooldowns();
     }
 }
