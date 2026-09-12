@@ -116,38 +116,59 @@ public partial class NadeSystemPlugin : BasePlugin
         });
     }
 
+    private const float DefuseCoverSmokeMaxRange = 700f;
+    private const float DefuseCoverSmokeHandHeight = 48f;
+    private const float DefuseCoverSmokeForward = 16f;
+    private const float DefuseCoverSmokeSpeed = 350f;
+    private const float DefuseCoverSmokeCloseDist = 80f;
+
     // * Triggers defensive smoke or flash support during a defuse
     private HookResult OnBombBeginDefuse(EventBombBegindefuse @event, GameEventInfo info)
     {
-        if (!UsesLegacyReplayFeatures) return HookResult.Continue;
-        var bot = @event.Userid;
-        if (bot == null || !bot.IsValid || !bot.IsBot) return HookResult.Continue;
-        if (bot.HasBeenControlledByPlayerThisRound) return HookResult.Continue;
+        var defuser = @event.Userid;
+        if (defuser == null || !defuser.IsValid) return HookResult.Continue;
 
-        var pawn = bot.PlayerPawn?.Value;
-        if (pawn == null || !pawn.IsValid || !bot.PawnIsAlive)
-            return HookResult.Continue;
-
-        var pos = pawn.AbsOrigin;
-        if (pos == null) return HookResult.Continue;
-        var spawnPos = new Vector(pos.X, pos.Y, pos.Z + 5f);
-
-        // Defuse smoke
         if (!_defuseSmokeUsed)
         {
-            bool hasDefuser = false;
-            if (pawn.ItemServices != null
-                && pawn.ItemServices.Handle != nint.Zero)
+            bool threwCover = TryThrowDefuseCoverSmoke(defuser);
+            if (!threwCover
+                && UsesLegacyReplayFeatures
+                && defuser.IsBot
+                && !defuser.HasBeenControlledByPlayerThisRound)
             {
-                hasDefuser = new CCSPlayer_ItemServices(pawn.ItemServices.Handle).HasDefuser;
-            }
+                var pawn = defuser.PlayerPawn?.Value;
+                if (pawn != null && pawn.IsValid && defuser.PawnIsAlive)
+                {
+                    var pos = pawn.AbsOrigin;
+                    if (pos != null)
+                    {
+                        bool hasDefuser = false;
+                        if (pawn.ItemServices != null
+                            && pawn.ItemServices.Handle != nint.Zero)
+                        {
+                            hasDefuser = new CCSPlayer_ItemServices(pawn.ItemServices.Handle).HasDefuser;
+                        }
 
-            if (hasDefuser || Random.Shared.NextDouble() < 0.33)
-            {
-                _defuseSmokeUsed = true;
-                TrySpawnInstantGrenade(bot, spawnPos, "smoke");
+                        if (hasDefuser || Random.Shared.NextDouble() < 0.33)
+                        {
+                            _defuseSmokeUsed = true;
+                            TrySpawnInstantGrenade(defuser, new Vector(pos.X, pos.Y, pos.Z + 5f), "smoke");
+                        }
+                    }
+                }
             }
         }
+
+        if (!UsesLegacyReplayFeatures) return HookResult.Continue;
+        if (!defuser.IsBot || defuser.HasBeenControlledByPlayerThisRound)
+            return HookResult.Continue;
+
+        var flashPawn = defuser.PlayerPawn?.Value;
+        if (flashPawn == null || !flashPawn.IsValid || !defuser.PawnIsAlive)
+            return HookResult.Continue;
+
+        var flashPos = flashPawn.AbsOrigin;
+        if (flashPos == null) return HookResult.Continue;
 
         // Defuse flash
         if (!_defuseFlashUsed)
@@ -156,13 +177,191 @@ public partial class NadeSystemPlugin : BasePlugin
             {
                 _defuseFlashUsed = true;
                 // Don't flash yourself
-                _botFlashImmunityUntil[(uint)bot.Index] = Server.CurrentTime + 2f;
+                _botFlashImmunityUntil[(uint)defuser.Index] = Server.CurrentTime + 2f;
                 var flashVel = new Vector(0f, 0f, -800f);
-                TrySpawnInstantGrenade(bot, spawnPos, "flash", flashVel);
+                TrySpawnInstantGrenade(defuser, new Vector(flashPos.X, flashPos.Y, flashPos.Z + 5f), "flash", flashVel);
             }
         }
 
         return HookResult.Continue;
+    }
+
+    // * Inventory underhand smoke from a teammate bot onto planted C4
+    private bool TryThrowDefuseCoverSmoke(CCSPlayerController defuser)
+    {
+        if (_botNadesMode == "off") return false;
+        if (CountAliveEnemyBots(defuser.TeamNum) < 1) return false;
+
+        var bomb = Utilities
+            .FindAllEntitiesByDesignerName<CPlantedC4>("planted_c4")
+            .FirstOrDefault();
+        if (bomb == null || !bomb.IsValid) return false;
+        var bombPos = bomb.AbsOrigin;
+        if (bombPos == null) return false;
+
+        float c4X = bombPos.X, c4Y = bombPos.Y, c4Z = bombPos.Z;
+        var thrower = FindDefuseCoverSmokeBot(defuser, c4X, c4Y, c4Z);
+        if (thrower == null) return false;
+
+        _defuseSmokeUsed = true;
+        int teamNum = thrower.TeamNum;
+
+        Server.NextFrame(() =>
+        {
+            try
+            {
+                if (_botNadesMode == "off" || !thrower.IsValid || !thrower.IsBot || !thrower.PawnIsAlive
+                    || thrower.HasBeenControlledByPlayerThisRound)
+                {
+                    _defuseSmokeUsed = false;
+                    return;
+                }
+
+                var pawn = GetActiveLivePawn(thrower);
+                if (pawn == null || !pawn.IsValid || !HasGrenadeWeapon(pawn, "smoke"))
+                {
+                    _defuseSmokeUsed = false;
+                    return;
+                }
+
+                var origin = pawn.AbsOrigin;
+                if (origin == null)
+                {
+                    _defuseSmokeUsed = false;
+                    return;
+                }
+
+                ComputeDefuseCoverUnderhand(
+                    origin.X, origin.Y, origin.Z, c4X, c4Y, c4Z,
+                    out float spawnX, out float spawnY, out float spawnZ,
+                    out float velX, out float velY, out float velZ);
+
+                var spawnOrigin = new Vector(spawnX, spawnY, spawnZ);
+                var velocity = new Vector(velX, velY, velZ);
+                var smoke = _smokeCreate.Invoke(
+                    spawnOrigin.Handle, spawnOrigin.Handle,
+                    velocity.Handle, velocity.Handle,
+                    pawn.Handle, 45, teamNum);
+                if (smoke == null || !smoke.IsValid)
+                {
+                    _defuseSmokeUsed = false;
+                    return;
+                }
+
+                smoke.TeamNum = (byte)teamNum;
+                smoke.Thrower.Raw = pawn.EntityHandle.Raw;
+                smoke.OriginalThrower.Raw = pawn.EntityHandle.Raw;
+                smoke.OwnerEntity.Raw = pawn.EntityHandle.Raw;
+                ConsumeGrenadeWeapon(pawn, "smoke");
+                AnnounceGrenadeThrow(thrower, "smoke");
+                Server.PrintToConsole(
+                    $"[NadeSystem] defuse-cover [smoke] bot=[{thrower.PlayerName}] " +
+                    $"origin=({spawnX:F0},{spawnY:F0},{spawnZ:F0}) " +
+                    $"c4=({c4X:F0},{c4Y:F0},{c4Z:F0})");
+            }
+            catch (Exception ex)
+            {
+                _defuseSmokeUsed = false;
+                Server.PrintToConsole($"[NadeSystem] defuse-cover smoke error: {ex.Message}");
+            }
+        });
+
+        return true;
+    }
+
+    private static int CountAliveEnemyBots(int friendlyTeam)
+    {
+        int count = 0;
+        foreach (var p in Utilities.FindAllEntitiesByDesignerName<CCSPlayerController>("cs_player_controller"))
+        {
+            if (!p.IsValid || !p.IsBot || !p.PawnIsAlive) continue;
+            if ((int)p.TeamNum != 2 && (int)p.TeamNum != 3) continue;
+            if ((int)p.TeamNum == friendlyTeam) continue;
+            if (p.HasBeenControlledByPlayerThisRound) continue;
+            count++;
+        }
+        return count;
+    }
+
+    private CCSPlayerController? FindDefuseCoverSmokeBot(
+        CCSPlayerController defuser, float c4X, float c4Y, float c4Z)
+    {
+        CCSPlayerController? best = null;
+        float bestDist = float.MaxValue;
+        uint defuserIdx = (uint)defuser.Index;
+
+        foreach (var p in Utilities.FindAllEntitiesByDesignerName<CCSPlayerController>("cs_player_controller"))
+        {
+            if (!p.IsValid || !p.IsBot || !p.PawnIsAlive) continue;
+            if ((uint)p.Index == defuserIdx) continue;
+            if (p.TeamNum != defuser.TeamNum) continue;
+            if (p.HasBeenControlledByPlayerThisRound) continue;
+
+            var pawn = GetActiveLivePawn(p);
+            if (pawn == null || !pawn.IsValid) continue;
+            if (pawn.MoveType == MoveType_t.MOVETYPE_LADDER) continue;
+            if (!HasGrenadeWeapon(pawn, "smoke")) continue;
+
+            var origin = pawn.AbsOrigin;
+            if (origin == null) continue;
+            float d = Dist3D(origin.X, origin.Y, origin.Z, c4X, c4Y, c4Z);
+            if (d > DefuseCoverSmokeMaxRange) continue;
+            if (d >= bestDist) continue;
+
+            bestDist = d;
+            best = p;
+        }
+
+        return best;
+    }
+
+    private static void ComputeDefuseCoverUnderhand(
+        float ox, float oy, float oz,
+        float c4X, float c4Y, float c4Z,
+        out float spawnX, out float spawnY, out float spawnZ,
+        out float velX, out float velY, out float velZ)
+    {
+        float dx = c4X - ox;
+        float dy = c4Y - oy;
+        float handZ = oz + DefuseCoverSmokeHandHeight;
+        float dz = c4Z - handZ;
+        float hDist = MathF.Sqrt(dx * dx + dy * dy);
+        spawnZ = handZ;
+        if (hDist > 1f)
+        {
+            float invH = 1f / hDist;
+            spawnX = ox + dx * invH * DefuseCoverSmokeForward;
+            spawnY = oy + dy * invH * DefuseCoverSmokeForward;
+        }
+        else
+        {
+            spawnX = ox;
+            spawnY = oy;
+        }
+
+        float dist = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < DefuseCoverSmokeCloseDist)
+        {
+            if (hDist > 1f)
+            {
+                float invH = 1f / hDist;
+                velX = dx * invH * 80f;
+                velY = dy * invH * 80f;
+            }
+            else
+            {
+                velX = 0f;
+                velY = 0f;
+            }
+            velZ = 40f;
+            return;
+        }
+
+        float inv = 1f / dist;
+        float loft = Math.Clamp(dist * 0.15f, 40f, 120f);
+        velX = dx * inv * DefuseCoverSmokeSpeed;
+        velY = dy * inv * DefuseCoverSmokeSpeed;
+        velZ = dz * inv * DefuseCoverSmokeSpeed + loft;
     }
 
     // Plant smoke

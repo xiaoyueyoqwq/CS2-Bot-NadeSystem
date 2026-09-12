@@ -224,6 +224,7 @@ public partial class NadeSystemPlugin : BasePlugin
                 "he" => name == "weapon_hegrenade",
                 "molotov" => name is "weapon_molotov" or "weapon_incgrenade",
                 "flash" => name == "weapon_flashbang",
+                "smoke" => name == "weapon_smokegrenade",
                 _ => false,
             };
             if (match) return weapon;
